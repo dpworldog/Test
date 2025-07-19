@@ -1,4 +1,4 @@
-name: VPS with Tmate and Backup
+name: VPS with Public Tmate & Backup
 
 on:
   workflow_dispatch:
@@ -6,38 +6,41 @@ on:
 jobs:
   vps:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours
+    timeout-minutes: 360  # Max allowed by GitHub
 
     steps:
-    - name: 📥 Checkout Repository
+    - name: 📥 Checkout Code
       uses: actions/checkout@v3
 
-    - name: 📂 Restore from Backup if Exists
+    - name: 📦 Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y zip unzip
+
+    - name: 🔁 Restore Backup if Exists
       run: |
         mkdir -p data
         if [ -f .backup/latest.zip ]; then
-          echo "Restoring backup..."
+          echo "🔄 Restoring from backup..."
           unzip -o .backup/latest.zip -d .
         else
-          echo "No backup found, starting fresh."
+          echo "❌ No backup found. Starting fresh."
         fi
 
-    - name: 🧪 Start Tmate SSH Session
+    - name: 🧑‍💻 Start Public Tmate SSH Session
       uses: mxschmitt/action-tmate@v3
-      with:
-        limit-access-to-actor: true  # only you can access it
 
-    - name: 💾 Backup Data on Exit
+    - name: 💾 Save Backup on Exit
       if: always()
       run: |
         mkdir -p .backup
         zip -r .backup/latest.zip data/
-        echo "Backup saved to .backup/latest.zip"
+        echo "✅ Backup saved to .backup/latest.zip"
 
-    - name: 📤 Commit and Push Backup
+    - name: 📤 Push Backup to GitHub
       if: always()
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: "🔄 Backup on session exit"
+        commit_message: "🔁 Auto backup after tmate session"
         file_pattern: ".backup/latest.zip"
         
