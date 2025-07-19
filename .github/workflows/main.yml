@@ -1,0 +1,43 @@
+name: VPS with Tmate and Backup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours
+
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: 📂 Restore from Backup if Exists
+      run: |
+        mkdir -p data
+        if [ -f .backup/latest.zip ]; then
+          echo "Restoring backup..."
+          unzip -o .backup/latest.zip -d .
+        else
+          echo "No backup found, starting fresh."
+        fi
+
+    - name: 🧪 Start Tmate SSH Session
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true  # only you can access it
+
+    - name: 💾 Backup Data on Exit
+      if: always()
+      run: |
+        mkdir -p .backup
+        zip -r .backup/latest.zip data/
+        echo "Backup saved to .backup/latest.zip"
+
+    - name: 📤 Commit and Push Backup
+      if: always()
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "🔄 Backup on session exit"
+        file_pattern: ".backup/latest.zip"
+        
